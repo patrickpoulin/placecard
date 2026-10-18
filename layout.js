@@ -145,6 +145,20 @@
     const blockH = logoH + gap + textH;
     let y = (faceH - blockH) / 2 + (s.nudge || 0);
 
+    // The logo keeps the spot it has on a typical card (one-line name plus
+    // one-line company) even when the name or company is blank, so cards
+    // left empty for handwriting still have the logo at the top.
+    if (logo) {
+      const nameF = fonts[s.nameBold ? 'bold' : 'regular'];
+      const refTextH = capHeight(nameF, s.nameSize) + s.companySize * LEADING + GROUP_GAP * s.nameSize;
+      const refTop = (faceH - (logoH + s.gap + refTextH)) / 2 + (s.nudge || 0);
+      if (s.logoPos === 'below') {
+        if (!hasText) y = refTop + refTextH + s.gap;
+      } else {
+        y = Math.min(y, refTop);
+      }
+    }
+
     const drawLogo = () => {
       ops.push({ type: 'image', x: (faceW - logoW) / 2, y, w: logoW, h: logoH });
       y += logoH + gap;
