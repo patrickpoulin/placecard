@@ -188,26 +188,27 @@
 
   function drawGuides(page, paper, s) {
     const { w: W, h: H } = paper;
-    const cut = { thickness: 0.6, color: rgb(0.62, 0.62, 0.66), dashArray: [4, 3] };
-    // Cut lines run the full sheet so they line up with a paper trimmer.
-    page.drawLine({ start: { x: W / 2, y: 0 }, end: { x: W / 2, y: H }, ...cut });
-    page.drawLine({ start: { x: 0, y: H / 2 }, end: { x: W, y: H / 2 }, ...cut });
+    // Small marks only: a dash where each cut or fold meets the sheet edge,
+    // and a cross wherever guides meet inside the sheet.
+    const mark = { thickness: 0.6, color: rgb(0.6, 0.6, 0.64) };
+    const dash = 0.3 * PT_PER_IN;   // edge dash length (long enough to clear printer margins)
+    const arm = 0.12 * PT_PER_IN;   // half-length of each cross arm
+    const line = (x1, y1, x2, y2) => page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, ...mark });
+    const cross = (x, y) => { line(x - arm, y, x + arm, y); line(x, y - arm, x, y + arm); };
+
+    // Cuts: the vertical and horizontal centre lines of the sheet.
+    line(W / 2, H, W / 2, H - dash);
+    line(W / 2, 0, W / 2, dash);
+    line(0, H / 2, dash, H / 2);
+    line(W, H / 2, W - dash, H / 2);
+    cross(W / 2, H / 2);
 
     if (s.foldStyle === 'none') return;
-    const fold = { thickness: 0.5, color: rgb(0.78, 0.78, 0.8) };
-    const cardW = W / 2, cardH = H / 2;
-    for (let r = 0; r < 2; r++) {
-      const yFold = H - (r * cardH + cardH / 2);
-      for (let c = 0; c < 2; c++) {
-        const x0 = c * cardW, x1 = x0 + cardW;
-        if (s.foldStyle === 'full') {
-          page.drawLine({ start: { x: x0, y: yFold }, end: { x: x1, y: yFold }, ...fold, dashArray: [1, 2] });
-        } else {
-          const t = 0.22 * PT_PER_IN;
-          page.drawLine({ start: { x: x0, y: yFold }, end: { x: x0 + t, y: yFold }, ...fold });
-          page.drawLine({ start: { x: x1 - t, y: yFold }, end: { x: x1, y: yFold }, ...fold });
-        }
-      }
+    // Folds: across the middle of each row of cards.
+    for (const yFold of [H * 0.75, H * 0.25]) {
+      line(0, yFold, dash, yFold);
+      line(W, yFold, W - dash, yFold);
+      cross(W / 2, yFold);
     }
   }
 

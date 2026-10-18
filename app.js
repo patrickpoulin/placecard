@@ -53,6 +53,7 @@
 
   const saved = loadState();
   const settings = Object.assign({}, DEFAULTS, saved.settings || {});
+  if (settings.foldStyle !== 'none') settings.foldStyle = 'ticks';
   let rows = Array.isArray(saved.rows) && saved.rows.length ? saved.rows.map((r) => [r[0] || '', r[1] || '']) : [];
   let logoState = null;          // { dataUrl, bytes, type, width, height }
   let customFontBytes = null;

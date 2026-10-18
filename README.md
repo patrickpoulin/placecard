@@ -10,7 +10,8 @@ Each card is folded across its middle into a tent. The top half is printed upsid
 down so that both faces read upright once folded, and the content on each face is
 optically centered (logo plus text block centered on the cap height, not the line
 box). Long names and companies wrap into balanced lines and shrink to fit.
-Dashed lines mark the cuts; small ticks (or an optional faint line) mark the fold.
+Only small marks are printed: a dash where each cut or fold meets the sheet edge,
+and a cross where guides meet in the middle of the sheet.
 
 Nothing is uploaded anywhere. Names, settings and the logo are kept in your
 browser's local storage only.
