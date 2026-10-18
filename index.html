@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Placecard Maker</title>
+  <meta name="description" content="Make printable fold-and-cut tent placecards from a list of names and companies.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Placecard Maker</h1>
+    <p class="tagline">Paste names, add a logo, print fold-and-cut tent cards. Everything stays in your browser.</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls">
+      <div class="group">
+        <h2>1. Logo</h2>
+        <div class="logo-row">
+          <label class="logo-drop" id="logoDrop" tabindex="0">
+            <input type="file" id="logoInput" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden>
+            <img id="logoPreview" alt="" hidden>
+            <span id="logoHint">Drop a logo here or click to upload<br><small>PNG, JPG, SVG or WebP</small></span>
+          </label>
+          <button type="button" class="ghost" id="logoClear" hidden>Remove</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-head">
+          <h2>2. Guests</h2>
+          <span class="count" id="guestCount">0 cards</span>
+        </div>
+        <p class="hint">Copy two columns (Name, Company) from Excel or Google Sheets, click a cell, and paste. A header row is skipped automatically.</p>
+        <div class="grid-wrap">
+          <table class="grid" id="grid">
+            <thead><tr><th class="rownum">#</th><th>Name</th><th>Company</th><th class="del"></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="row-actions">
+          <button type="button" id="addRows">Add 5 rows</button>
+          <button type="button" class="ghost" id="loadSample">Load sample</button>
+          <button type="button" class="ghost danger" id="clearRows">Clear all</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>3. Style</h2>
+        <div class="fields">
+          <label>Paper
+            <select id="paper">
+              <option value="letter">US Letter, 4 per sheet</option>
+              <option value="a4">A4, 4 per sheet</option>
+            </select>
+          </label>
+          <label>Font
+            <select id="font">
+              <option value="poppins">Poppins</option>
+              <option value="lato">Lato</option>
+              <option value="crimson">Crimson Text (serif)</option>
+              <option value="dmserif">DM Serif Display</option>
+              <option value="helvetica">Helvetica</option>
+              <option value="times">Times</option>
+              <option value="custom">Upload my own…</option>
+            </select>
+          </label>
+          <label id="customFontWrap" hidden>Font file (.ttf / .otf)
+            <input type="file" id="customFont" accept=".ttf,.otf,font/ttf,font/otf">
+          </label>
+          <label>Name size <output for="nameSize" id="nameSizeOut"></output>
+            <input type="range" id="nameSize" min="10" max="36" step="0.5">
+          </label>
+          <label>Company size <output for="companySize" id="companySizeOut"></output>
+            <input type="range" id="companySize" min="8" max="30" step="0.5">
+          </label>
+          <label class="check"><input type="checkbox" id="nameBold"> Bold name</label>
+          <label class="check"><input type="checkbox" id="companyBold"> Bold company</label>
+          <label>Name color <input type="color" id="nameColor"></label>
+          <label>Company color <input type="color" id="companyColor"></label>
+          <label>Logo height <output for="logoSize" id="logoSizeOut"></output>
+            <input type="range" id="logoSize" min="10" max="90" step="1">
+          </label>
+          <label>Logo to text gap <output for="gap" id="gapOut"></output>
+            <input type="range" id="gap" min="4" max="48" step="1">
+          </label>
+          <label>Logo position
+            <select id="logoPos">
+              <option value="above">Above text</option>
+              <option value="below">Below text</option>
+            </select>
+          </label>
+          <label>Fold line
+            <select id="foldStyle">
+              <option value="ticks">Small ticks at the edges</option>
+              <option value="full">Faint full line</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" id="fillBlanks"> Fill the last sheet with blank logo cards</label>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel preview">
+      <div class="group-head">
+        <h2>Preview</h2>
+        <div class="actions">
+          <span class="status" id="status"></span>
+          <button type="button" class="primary" id="download">Download PDF</button>
+        </div>
+      </div>
+      <div class="sheet-wrap">
+        <div id="pages" class="pages" aria-label="Sheet preview"></div>
+      </div>
+      <p class="hint">Print at <strong>100% / Actual size</strong>. Cut along the dashed lines, then fold each card across the middle so the text faces out on both sides.</p>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="layout.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
