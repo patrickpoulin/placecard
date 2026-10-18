@@ -19,6 +19,7 @@
     nameColor: '#262637',
     companyColor: '#4a4a5c',
     logoSize: 24,
+    logoSpacing: 14,
     gap: 18,
     logoPos: 'above',
     foldStyle: 'ticks',
@@ -43,11 +44,11 @@
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
   }
   function saveState() {
-    const data = { settings, rows: rows.filter((r) => r[0] || r[1]), logo: logoState && logoState.dataUrl };
+    const data = { settings, rows: rows.filter((r) => r[0] || r[1]), logos: logos.map((l) => ({ dataUrl: l.dataUrl, scale: l.scale })) };
     try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
     catch (e) {
       // Large logos can exceed the quota; keep everything else.
-      try { delete data.logo; localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e2) { /* ignore */ }
+      try { delete data.logos; localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e2) { /* ignore */ }
     }
   }
 
@@ -55,7 +56,8 @@
   const settings = Object.assign({}, DEFAULTS, saved.settings || {});
   if (settings.foldStyle !== 'none') settings.foldStyle = 'ticks';
   let rows = Array.isArray(saved.rows) && saved.rows.length ? saved.rows.map((r) => [r[0] || '', r[1] || '']) : [];
-  let logoState = null;          // { dataUrl, bytes, type, width, height }
+  const MAX_LOGOS = 3;
+  let logos = [];                // [{ dataUrl, bytes, type, width, height, scale }]
   let customFontBytes = null;
   const fontCache = {};
 
@@ -180,7 +182,7 @@
 
   // PNG and JPG embed directly; anything else (SVG, WebP) is rasterized to a
   // high-resolution PNG so it stays crisp in print.
-  async function setLogoFromDataUrl(dataUrl) {
+  async function addLogoFromDataUrl(dataUrl, scale) {
     const img = await loadImage(dataUrl);
     const isPng = dataUrl.startsWith('data:image/png');
     const isJpg = /^data:image\/jpe?g/.test(dataUrl);
@@ -195,11 +197,42 @@
       finalUrl = canvas.toDataURL('image/png');
       w = canvas.width; h = canvas.height;
     }
-    logoState = { dataUrl: finalUrl, bytes: dataUrlToBytes(finalUrl), type: isJpg ? 'jpg' : 'png', width: w, height: h };
-    $('logoPreview').src = finalUrl;
-    $('logoPreview').hidden = false;
-    $('logoHint').hidden = true;
-    $('logoClear').hidden = false;
+    if (logos.length >= MAX_LOGOS) return;
+    logos.push({ dataUrl: finalUrl, bytes: dataUrlToBytes(finalUrl), type: isJpg ? 'jpg' : 'png', width: w, height: h, scale: scale || 1 });
+  }
+
+  function renderLogos() {
+    const list = $('logoList');
+    list.innerHTML = '';
+    logos.forEach((l, i) => {
+      const li = document.createElement('li');
+      li.className = 'logo-item';
+      li.innerHTML = '<img alt=""><label class="logo-scale">Size <output></output><input type="range" min="40" max="200" step="5"></label>' +
+        '<div class="logo-btns"><button type="button" data-act="left" title="Move left" aria-label="Move left">\u2039</button>' +
+        '<button type="button" data-act="right" title="Move right" aria-label="Move right">\u203A</button>' +
+        '<button type="button" data-act="remove" class="danger" title="Remove" aria-label="Remove logo">\u00D7</button></div>';
+      li.querySelector('img').src = l.dataUrl;
+      const range = li.querySelector('input');
+      const out = li.querySelector('output');
+      range.value = Math.round(l.scale * 100);
+      out.textContent = range.value + '%';
+      range.addEventListener('input', () => { l.scale = range.value / 100; out.textContent = range.value + '%'; schedule(); });
+      li.querySelector('[data-act="left"]').disabled = i === 0;
+      li.querySelector('[data-act="right"]').disabled = i === logos.length - 1;
+      li.addEventListener('click', (e) => {
+        const act = e.target.dataset && e.target.dataset.act;
+        if (!act) return;
+        if (act === 'remove') logos.splice(i, 1);
+        else {
+          const j = act === 'left' ? i - 1 : i + 1;
+          [logos[i], logos[j]] = [logos[j], logos[i]];
+        }
+        renderLogos();
+        schedule();
+      });
+      list.appendChild(li);
+    });
+    $('logoDrop').hidden = logos.length >= MAX_LOGOS;
   }
 
   function readFile(file, asDataUrl) {
@@ -211,32 +244,27 @@
     });
   }
 
-  async function handleLogoFile(file) {
-    if (!file) return;
-    try {
-      await setLogoFromDataUrl(await readFile(file, true));
-      schedule();
-    } catch (err) { setStatus(err.message, true); }
+  async function handleLogoFiles(files) {
+    const list = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
+    if (list.length > MAX_LOGOS - logos.length) setStatus('Only ' + MAX_LOGOS + ' logos fit on a card; extra files were skipped.', true);
+    for (const file of list.slice(0, MAX_LOGOS - logos.length)) {
+      try { await addLogoFromDataUrl(await readFile(file, true)); }
+      catch (err) { setStatus(err.message, true); }
+    }
+    renderLogos();
+    schedule();
   }
 
-  $('logoInput').addEventListener('change', (e) => handleLogoFile(e.target.files[0]));
+  $('logoInput').addEventListener('change', (e) => { handleLogoFiles(e.target.files); e.target.value = ''; });
   const drop = $('logoDrop');
   drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('logoInput').click(); } });
   ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', (e) => handleLogoFile(e.dataTransfer.files[0]));
-  $('logoClear').addEventListener('click', () => {
-    logoState = null;
-    $('logoInput').value = '';
-    $('logoPreview').hidden = true;
-    $('logoHint').hidden = false;
-    $('logoClear').hidden = true;
-    schedule();
-  });
+  drop.addEventListener('drop', (e) => handleLogoFiles(e.dataTransfer.files));
 
   // ---------- settings ----------
   const SETTING_IDS = Object.keys(DEFAULTS);
-  const OUTPUTS = { nameSize: 'pt', companySize: 'pt', logoSize: 'pt', gap: 'pt' };
+  const OUTPUTS = { nameSize: 'pt', companySize: 'pt', logoSize: 'pt', logoSpacing: 'pt', gap: 'pt' };
 
   function syncControls() {
     for (const id of SETTING_IDS) {
@@ -342,7 +370,7 @@
     setStatus('Updating…');
     try {
       const fonts = await resolveFonts();
-      const bytes = await PlaceCards.buildPdf({ cards: filledRows(), settings, fonts, logo: logoState });
+      const bytes = await PlaceCards.buildPdf({ cards: filledRows(), settings, fonts, logos });
       lastBytes = bytes;
       await renderPreview(bytes);
       if (!$('status').classList.contains('error')) setStatus('');
@@ -372,7 +400,9 @@
   syncControls();
   renderGrid();
   (async () => {
-    if (saved.logo) { try { await setLogoFromDataUrl(saved.logo); } catch (e) { /* ignore */ } }
+    const savedLogos = Array.isArray(saved.logos) ? saved.logos : saved.logo ? [{ dataUrl: saved.logo }] : [];
+    for (const l of savedLogos) { try { await addLogoFromDataUrl(l.dataUrl, l.scale); } catch (e) { /* ignore */ } }
+    renderLogos();
     generate();
   })();
 })();

@@ -63,14 +63,25 @@ button.primary:hover { filter: brightness(1.08); }
 button.ghost { background: transparent; }
 button.danger { color: var(--danger); }
 
-/* Logo */
-.logo-row { display: flex; gap: 10px; align-items: center; }
+/* Logos */
+.logo-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.logo-list:empty { display: none; }
+.logo-item {
+  display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: center;
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fbfbfd;
+}
+.logo-item img { max-width: 96px; max-height: 40px; justify-self: center; }
+.logo-scale { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.logo-scale input { width: 100%; accent-color: var(--accent); }
+.logo-scale output { color: var(--text); font-variant-numeric: tabular-nums; }
+.logo-btns { display: flex; gap: 4px; }
+.logo-btns button { padding: 3px 9px; font-size: 15px; line-height: 1.2; }
+.logo-btns button:disabled { opacity: 0.35; cursor: default; }
 .logo-drop {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 92px;
+  min-height: 76px;
   border: 1.5px dashed #c9c9d6;
   border-radius: var(--radius);
   text-align: center;
@@ -79,8 +90,8 @@ button.danger { color: var(--danger); }
   padding: 12px;
   background: #fbfbfd;
 }
+.logo-drop[hidden] { display: none; }
 .logo-drop.over, .logo-drop:focus-visible { border-color: var(--accent); outline: none; background: #f2f3ff; }
-.logo-drop img { max-height: 64px; max-width: 100%; }
 
 /* Grid */
 .grid-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }

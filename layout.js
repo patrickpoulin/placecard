@@ -102,7 +102,8 @@
 
   // Lay out one face. Returns drawing ops in face space.
   function layoutFace(card, ctx) {
-    const { faceW, faceH, fonts, s, logo } = ctx;
+    const { faceW, faceH, fonts, s, logos } = ctx;
+    const logo = logos.length > 0;
     const maxTextW = faceW - 2 * SIDE_MARGIN;
     const ops = [];
 
@@ -119,11 +120,21 @@
       groups.push({ ...r, font: f, color: hexToRgb(s.companyColor), gapBefore });
     }
 
-    let logoW = 0, logoH = 0;
+    // Logos sit side by side at a shared height (each adjustable by its own
+    // scale), shrinking together if the row is wider than the safe area.
+    let logoW = 0, logoH = 0, logoItems = [];
     if (logo) {
-      logoH = s.logoSize;
-      logoW = logoH * (logo.width / logo.height);
-      if (logoW > maxTextW) { logoW = maxTextW; logoH = logoW * (logo.height / logo.width); }
+      const spacing = logos.length > 1 ? (s.logoSpacing ?? 14) : 0;
+      logoItems = logos.map((l) => {
+        const h = s.logoSize * (l.scale || 1);
+        return { index: l.index, w: h * (l.width / l.height), h };
+      });
+      const rawW = logoItems.reduce((a, l) => a + l.w, 0) + spacing * (logoItems.length - 1);
+      const k = rawW > maxTextW ? maxTextW / rawW : 1;
+      logoItems.forEach((l) => { l.w *= k; l.h *= k; });
+      logoItems.spacing = spacing * k;
+      logoW = rawW * k;
+      logoH = Math.max(...logoItems.map((l) => l.h));
     }
 
     let textH = textBlockHeight(groups);
@@ -160,7 +171,11 @@
     }
 
     const drawLogo = () => {
-      ops.push({ type: 'image', x: (faceW - logoW) / 2, y, w: logoW, h: logoH });
+      let x = (faceW - logoW) / 2;
+      for (const l of logoItems) {
+        ops.push({ type: 'image', index: l.index, x, y: y + (logoH - l.h) / 2, w: l.w, h: l.h });
+        x += l.w + logoItems.spacing;
+      }
       y += logoH + gap;
     };
     const drawText = () => {
@@ -182,7 +197,7 @@
   }
 
   // Map face-space ops onto the page. faceRect is in PDF space (y up).
-  function drawFace(page, ops, faceRect, rotated, logoImage) {
+  function drawFace(page, ops, faceRect, rotated, images) {
     const { x: fx, y: fy, w: fw, h: fh } = faceRect;
     // Upright: face top-left is (fx, fy+fh). Rotated 180: face top-left is (fx+fw, fy).
     const map = rotated
@@ -193,9 +208,9 @@
       if (op.type === 'text') {
         const p = map(op.x, op.y);
         page.drawText(op.text, { x: p.x, y: p.y, size: op.size, font: op.font, color: op.color, rotate: rot });
-      } else if (op.type === 'image' && logoImage) {
+      } else if (op.type === 'image' && images[op.index]) {
         const p = map(op.x, op.y + op.h); // image origin is its bottom-left corner
-        page.drawImage(logoImage, { x: p.x, y: p.y, width: op.w, height: op.h, rotate: rot });
+        page.drawImage(images[op.index], { x: p.x, y: p.y, width: op.w, height: op.h, rotate: rot });
       }
     }
   }
@@ -231,7 +246,7 @@
    * opts.cards     [{name, company}]
    * opts.settings  style settings (see app.js DEFAULTS)
    * opts.fonts     { regular: Uint8Array|null, bold: Uint8Array|null, standard: 'helvetica'|'times' }
-   * opts.logo      { bytes: Uint8Array, type: 'png'|'jpg', width, height } | null
+   * opts.logos     [{ bytes: Uint8Array, type: 'png'|'jpg', scale }] (up to 3, drawn left to right)
    */
   async function buildPdf(opts) {
     const s = opts.settings;
@@ -252,10 +267,11 @@
       fonts.bold = await doc.embedFont(times ? StandardFonts.TimesRomanBold : StandardFonts.HelveticaBold);
     }
 
-    let logoImage = null;
-    if (opts.logo) {
-      logoImage = opts.logo.type === 'jpg' ? await doc.embedJpg(opts.logo.bytes) : await doc.embedPng(opts.logo.bytes);
+    const images = [];
+    for (const l of opts.logos || []) {
+      images.push(l.type === 'jpg' ? await doc.embedJpg(l.bytes) : await doc.embedPng(l.bytes));
     }
+    const logos = images.map((img, i) => ({ index: i, width: img.width, height: img.height, scale: opts.logos[i].scale || 1 }));
 
     let cards = opts.cards.slice();
     if (!cards.length) cards = [{ name: '', company: '' }];
@@ -263,7 +279,7 @@
 
     const cardW = paper.w / 2, cardH = paper.h / 2;
     const faceW = cardW, faceH = cardH / 2;
-    const ctx = { faceW, faceH, fonts, s, logo: logoImage ? { width: logoImage.width, height: logoImage.height } : null };
+    const ctx = { faceW, faceH, fonts, s, logos };
 
     for (let i = 0; i < cards.length; i += 4) {
       const page = doc.addPage([paper.w, paper.h]);
@@ -273,8 +289,8 @@
         const cardTop = paper.h - row * cardH;
         const ops = layoutFace(card, ctx);
         // Back face: upper half of the card, rotated. Front face: lower half, upright.
-        drawFace(page, ops, { x: cardX, y: cardTop - faceH, w: faceW, h: faceH }, true, logoImage);
-        drawFace(page, ops, { x: cardX, y: cardTop - cardH, w: faceW, h: faceH }, false, logoImage);
+        drawFace(page, ops, { x: cardX, y: cardTop - faceH, w: faceW, h: faceH }, true, images);
+        drawFace(page, ops, { x: cardX, y: cardTop - cardH, w: faceW, h: faceH }, false, images);
       });
       drawGuides(page, paper, s);
     }

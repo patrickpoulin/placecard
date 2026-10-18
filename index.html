@@ -10,21 +10,21 @@
 <body>
   <header class="topbar">
     <h1>Placecard Maker</h1>
-    <p class="tagline">Paste names, add a logo, print fold-and-cut tent cards. Everything stays in your browser.</p>
+    <p class="tagline">Paste names, add logos, print fold-and-cut tent cards. Everything stays in your browser.</p>
   </header>
 
   <main class="layout">
     <section class="panel controls">
       <div class="group">
-        <h2>1. Logo</h2>
-        <div class="logo-row">
-          <label class="logo-drop" id="logoDrop" tabindex="0">
-            <input type="file" id="logoInput" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden>
-            <img id="logoPreview" alt="" hidden>
-            <span id="logoHint">Drop a logo here or click to upload<br><small>PNG, JPG, SVG or WebP</small></span>
-          </label>
-          <button type="button" class="ghost" id="logoClear" hidden>Remove</button>
+        <div class="group-head">
+          <h2>1. Logos</h2>
+          <span class="count">up to 3, shown left to right</span>
         </div>
+        <ul class="logo-list" id="logoList"></ul>
+        <label class="logo-drop" id="logoDrop" tabindex="0">
+          <input type="file" id="logoInput" accept="image/png,image/jpeg,image/svg+xml,image/webp" multiple hidden>
+          <span>Drop logos here or click to upload<br><small>PNG, JPG, SVG or WebP</small></span>
+        </label>
       </div>
 
       <div class="group">
@@ -81,6 +81,9 @@
           <label>Company color <input type="color" id="companyColor"></label>
           <label>Logo height <output for="logoSize" id="logoSizeOut"></output>
             <input type="range" id="logoSize" min="10" max="90" step="1">
+          </label>
+          <label>Space between logos <output for="logoSpacing" id="logoSpacingOut"></output>
+            <input type="range" id="logoSpacing" min="0" max="48" step="1">
           </label>
           <label>Logo to text gap <output for="gap" id="gapOut"></output>
             <input type="range" id="gap" min="4" max="48" step="1">

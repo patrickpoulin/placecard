@@ -2,7 +2,7 @@
 
 A static, client-side web app for making printable fold-and-cut tent placecards.
 
-- Upload a logo (PNG, JPG, SVG or WebP).
+- Upload up to three logos (PNG, JPG, SVG or WebP), shown side by side with adjustable sizes and order.
 - Paste Name / Company rows straight from Excel or Google Sheets into the grid.
 - Download a PDF with four cards per US Letter or A4 sheet.
 
