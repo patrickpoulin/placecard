@@ -22,7 +22,6 @@
     logoSpacing: 14,
     gap: 18,
     logoPos: 'above',
-    foldStyle: 'ticks',
     fillBlanks: true,
   };
 
@@ -54,7 +53,6 @@
 
   const saved = loadState();
   const settings = Object.assign({}, DEFAULTS, saved.settings || {});
-  if (settings.foldStyle !== 'none') settings.foldStyle = 'ticks';
   let rows = Array.isArray(saved.rows) && saved.rows.length ? saved.rows.map((r) => [r[0] || '', r[1] || '']) : [];
   const MAX_LOGOS = 3;
   let logos = [];                // [{ dataUrl, bytes, type, width, height, scale }]
