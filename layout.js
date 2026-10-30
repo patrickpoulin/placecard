@@ -223,8 +223,8 @@
     const { w: W, h: H } = paper;
     // Small marks only: a short tick where each cut or fold meets the sheet edge.
     const mark = { thickness: 0.35, color: rgb(0.8, 0.8, 0.82) };
-    const inset = 0.18 * PT_PER_IN; // edge dashes start inside the printer's unprintable margin
-    const dash = 0.3 * PT_PER_IN;   // ...and end here, leaving a short visible tick
+    const inset = 0;                // ticks start right at the sheet edge
+    const dash = 0.25 * PT_PER_IN;  // tick length
     const line = (x1, y1, x2, y2) => page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, ...mark });
 
     // Cuts: the vertical and horizontal centre lines of the sheet.
