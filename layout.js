@@ -221,28 +221,23 @@
 
   function drawGuides(page, paper, s) {
     const { w: W, h: H } = paper;
-    // Small marks only: a dash where each cut or fold meets the sheet edge,
-    // and a cross wherever guides meet inside the sheet.
+    // Small marks only: a short tick where each cut or fold meets the sheet edge.
     const mark = { thickness: 0.35, color: rgb(0.8, 0.8, 0.82) };
     const inset = 0.18 * PT_PER_IN; // edge dashes start inside the printer's unprintable margin
     const dash = 0.3 * PT_PER_IN;   // ...and end here, leaving a short visible tick
-    const arm = 0.06 * PT_PER_IN;   // half-length of each cross arm
     const line = (x1, y1, x2, y2) => page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, ...mark });
-    const cross = (x, y) => { line(x - arm, y, x + arm, y); line(x, y - arm, x, y + arm); };
 
     // Cuts: the vertical and horizontal centre lines of the sheet.
     line(W / 2, H - inset, W / 2, H - dash);
     line(W / 2, inset, W / 2, dash);
     line(inset, H / 2, dash, H / 2);
     line(W - inset, H / 2, W - dash, H / 2);
-    cross(W / 2, H / 2);
 
     if (s.foldStyle === 'none') return;
     // Folds: across the middle of each row of cards.
     for (const yFold of [H * 0.75, H * 0.25]) {
       line(inset, yFold, dash, yFold);
       line(W - inset, yFold, W - dash, yFold);
-      cross(W / 2, yFold);
     }
   }
 
