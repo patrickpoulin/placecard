@@ -87,19 +87,6 @@
     return { lines, size: s };
   }
 
-  function textBlockHeight(groups) {
-    // From the cap-top of the first line to the baseline of the last line.
-    let h = 0;
-    let first = true;
-    for (const g of groups) {
-      g.lines.forEach((line, i) => {
-        if (first) { h = capHeight(g.font, g.size); first = false; }
-        else h += g.size * LEADING + (i === 0 ? g.gapBefore : 0);
-      });
-    }
-    return h;
-  }
-
   // Lay out one face. Returns drawing ops in face space.
   function layoutFace(card, ctx) {
     const { faceW, faceH, fonts, s, logos } = ctx;
@@ -137,62 +124,79 @@
       logoH = Math.max(...logoItems.map((l) => l.h));
     }
 
-    let textH = textBlockHeight(groups);
-    const hasText = groups.length > 0;
-    const gap = logo && hasText ? s.gap : 0;
+    // Every card shares the same fixed lines, measured from the fold, so
+    // logos, names and companies sit at identical heights on all cards and on
+    // both faces. The lines come from a typical card (one-line name plus
+    // one-line company) centred on the face; longer text grows downward
+    // toward the table edge and shrinks if it would run past the margin.
+    const nameRefF = fonts[s.nameBold ? 'bold' : 'regular'];
+    const nameCap = capHeight(nameRefF, s.nameSize);
+    const refTextH = nameCap + GROUP_GAP * s.nameSize + s.companySize * LEADING;
+    const below = logo && s.logoPos === 'below';
+    const logoBlock = logo ? logoH + s.gap : 0;
+    const refTop = (faceH - (logoBlock + refTextH)) / 2 + (s.nudge || 0);
+    const logoY = below ? refTop + refTextH + s.gap : refTop;
+    const nameBase = (below ? refTop : refTop + logoBlock) + nameCap;
+    const companyBase = nameBase + GROUP_GAP * s.nameSize + s.companySize * LEADING;
+    const nameGroup = card.name && card.name.trim() ? groups[0] : null;
+    const companyGroup = groups.find((g) => g !== nameGroup) || null;
 
-    // If everything together is taller than the face, shrink the text to fit.
-    const avail = faceH - 2 * VERT_MARGIN;
-    if (hasText && logoH + gap + textH > avail) {
-      const scale = Math.max(0.4, (avail - logoH - gap) / textH);
-      for (const g of groups) {
-        const r = fitText(g.lines.join(' '), g.font, Math.max(MIN_SIZE, g.size * scale), maxTextW, g.lines.length);
-        g.lines = r.lines; g.size = r.size;
-      }
-      if (groups[1]) groups[1].gapBefore = GROUP_GAP * groups[0].size;
-      textH = textBlockHeight(groups);
-    }
-
-    const blockH = logoH + gap + textH;
-    let y = (faceH - blockH) / 2 + (s.nudge || 0);
-
-    // The logo keeps the spot it has on a typical card (one-line name plus
-    // one-line company) even when the name or company is blank, so cards
-    // left empty for handwriting still have the logo at the top.
-    if (logo) {
-      const nameF = fonts[s.nameBold ? 'bold' : 'regular'];
-      const refTextH = capHeight(nameF, s.nameSize) + s.companySize * LEADING + GROUP_GAP * s.nameSize;
-      const refTop = (faceH - (logoH + s.gap + refTextH)) / 2 + (s.nudge || 0);
-      if (s.logoPos === 'below') {
-        if (!hasText) y = refTop + refTextH + s.gap;
-      } else {
-        y = Math.min(y, refTop);
-      }
-    }
-
-    const drawLogo = () => {
-      let x = (faceW - logoW) / 2;
-      for (const l of logoItems) {
-        ops.push({ type: 'image', index: l.index, x, y: y + (logoH - l.h) / 2, w: l.w, h: l.h });
-        x += l.w + logoItems.spacing;
-      }
-      y += logoH + gap;
-    };
-    const drawText = () => {
-      let first = true;
-      for (const g of groups) {
-        g.lines.forEach((line, i) => {
-          if (first) { y += capHeight(g.font, g.size); first = false; }
-          else y += g.size * LEADING + (i === 0 ? g.gapBefore : 0);
-          const w = g.font.widthOfTextAtSize(line, g.size);
-          ops.push({ type: 'text', text: line, x: (faceW - w) / 2, y, size: g.size, font: g.font, color: g.color });
+    // Baselines for each line, given the current sizes.
+    const placeLines = () => {
+      const lines = [];
+      let base = nameBase;
+      if (nameGroup) {
+        nameGroup.lines.forEach((t, i) => {
+          if (i) base += nameGroup.size * LEADING;
+          lines.push({ g: nameGroup, t, base });
         });
       }
-      y += gap;
+      if (companyGroup) {
+        base = nameGroup
+          ? Math.max(companyBase, base + GROUP_GAP * nameGroup.size + companyGroup.size * LEADING)
+          : companyBase;
+        companyGroup.lines.forEach((t, i) => {
+          if (i) base += companyGroup.size * LEADING;
+          lines.push({ g: companyGroup, t, base });
+        });
+      }
+      return lines;
     };
 
-    if (logo && s.logoPos === 'below') { drawText(); drawLogo(); }
-    else { if (logo) drawLogo(); drawText(); }
+    // Text may run down to the bottom margin. When the logo sits below the
+    // text, it keeps its line unless longer text pushes it down, and the text
+    // leaves room for it above the margin.
+    let lines = placeLines();
+    const overflow = () => {
+      const last = lines[lines.length - 1];
+      if (!last) return 0;
+      return below
+        ? last.base - (faceH - VERT_MARGIN - logoH - s.gap)
+        : last.base + 0.22 * last.g.size - (faceH - VERT_MARGIN);
+    };
+    for (let i = 0; i < 40 && overflow() > 0.01; i++) {
+      // Shrink the company first so the name keeps its size where possible.
+      const g = companyGroup && companyGroup.size > MIN_SIZE ? companyGroup : nameGroup;
+      if (!g || g.size <= MIN_SIZE) break;
+      const r = fitText(g.lines.join(' '), g.font, Math.max(MIN_SIZE, g.size * 0.97), maxTextW, g.lines.length);
+      g.lines = r.lines; g.size = r.size;
+      lines = placeLines();
+    }
+
+    if (logo) {
+      const last = lines[lines.length - 1];
+      const rowY = below && last ? Math.max(logoY, last.base + s.gap) : logoY;
+      let x = (faceW - logoW) / 2;
+      for (const l of logoItems) {
+        // Each logo is centred on the row's middle line.
+        ops.push({ type: 'image', index: l.index, x, y: rowY + (logoH - l.h) / 2, w: l.w, h: l.h });
+        x += l.w + logoItems.spacing;
+      }
+    }
+    for (const { g, t, base } of lines) {
+      const w = g.font.widthOfTextAtSize(t, g.size);
+      ops.push({ type: 'text', text: t, x: (faceW - w) / 2, y: base, size: g.size, font: g.font, color: g.color });
+    }
     return ops;
   }
 
